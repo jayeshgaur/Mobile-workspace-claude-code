@@ -1,0 +1,749 @@
+<title>Bharat Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Eczar:wght@500;600;700&family=Hind:wght@400;500;600&display=swap">
+<style>
+  /* Layout: a full-height map stage under a slim header; a details card docks right on wide screens and rises as a bottom sheet on phones. */
+  :root {
+    --bg: #eef1f4;            /* sea: cool grey-white with a slight blue bias */
+    --land: #fbfbf9;          /* neutral land before any colouring */
+    --fg: #15202b;
+    --fg-2: #4b5866;
+    --fg-3: #7d8894;
+    --line: #c9d1d9;
+    --border: #4f5d6b;        /* state borders */
+    --coast: #15202b;
+    --panel: rgba(255,255,255,.88);
+    --panel-solid: #ffffff;
+    --accent: #1f5aa6;
+    --accent-ink: #ffffff;
+    --good: #2f8a5b;
+    --bad: #c23b3b;
+    --halo: #fbfbf9;
+    --zone-n: #266FA0; --zone-c: #C88809; --zone-w: #BF4874; --zone-s: #3B7736; --zone-e: #9A71CE; --zone-ne: #1AA297;
+    --tint-mix: 46%;
+    --seq-lo: #e4ebf3; --seq-hi: #0f2f57;
+    --shadow: 0 8px 28px rgba(20,32,48,.14);
+    --font-display: "Eczar", "Georgia", "Times New Roman", serif;
+    --font-ui: "Hind", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d141c; --land: #1b2531; --fg: #e9eef3; --fg-2: #b3bec9; --fg-3: #7f8b97; --line: #2b3844;
+      --border: #93a1af; --coast: #e9eef3; --panel: rgba(22,31,41,.9); --panel-solid: #161f29;
+      --accent: #7fb0ec; --accent-ink: #0d141c; --good: #5ec98f; --bad: #ff7b7b; --halo: #1b2531;
+      --zone-n: #6FA8DC; --zone-c: #E0A93A; --zone-w: #E07AA0; --zone-s: #6FB76A; --zone-e: #B89BE6; --zone-ne: #4CC9BE;
+      --tint-mix: 40%; --seq-lo: #1c2a3a; --seq-hi: #a9cdf5; --shadow: 0 8px 28px rgba(0,0,0,.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d141c; --land: #1b2531; --fg: #e9eef3; --fg-2: #b3bec9; --fg-3: #7f8b97; --line: #2b3844;
+    --border: #93a1af; --coast: #e9eef3; --panel: rgba(22,31,41,.9); --panel-solid: #161f29;
+    --accent: #7fb0ec; --accent-ink: #0d141c; --good: #5ec98f; --bad: #ff7b7b; --halo: #1b2531;
+    --zone-n: #6FA8DC; --zone-c: #E0A93A; --zone-w: #E07AA0; --zone-s: #6FB76A; --zone-e: #B89BE6; --zone-ne: #4CC9BE;
+    --tint-mix: 40%; --seq-lo: #1c2a3a; --seq-hi: #a9cdf5; --shadow: 0 8px 28px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.4; overflow: hidden; }
+  * { box-sizing: border-box; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  #app { height: 100%; display: flex; flex-direction: column; }
+
+  /* Header */
+  .bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding-block: 10px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    border-bottom: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(8px);
+    z-index: 5;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .brand h1 { font-family: var(--font-display); font-weight: 600; font-size: 24px; margin: 0; letter-spacing: .01em; line-height: 1; }
+  .brand .sub { color: var(--fg-3); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .search { position: relative; flex: 1 1 200px; max-width: 360px; min-width: 0; }
+  .search input {
+    width: 100%; padding: 8px 12px 7px 34px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel-solid); color: var(--fg); font: inherit; font-size: 14px;
+  }
+  .search input::placeholder { color: var(--fg-3); }
+  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; stroke: var(--fg-3); fill: none; stroke-width: 2; pointer-events: none; }
+  .sugg { position: absolute; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none;
+    background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); max-height: 50vh; overflow: auto; z-index: 20; }
+  .sugg li { padding: 7px 10px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+  .sugg li .k { color: var(--fg-3); font-size: 12px; white-space: nowrap; }
+  .sugg li:hover, .sugg li[aria-selected="true"] { background: color-mix(in oklab, var(--accent) 14%, transparent); }
+  .modes { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; max-width: 100%; padding: 2px; }
+  .modes::-webkit-scrollbar { display: none; }
+  .modes button {
+    border: 1px solid transparent; background: transparent; border-radius: 999px; padding: 6px 12px 5px; cursor: pointer;
+    font-size: 13.5px; font-weight: 500; letter-spacing: .02em; white-space: nowrap; color: var(--fg-2);
+  }
+  .modes button:hover { background: color-mix(in oklab, var(--fg) 7%, transparent); }
+  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .modes button.is-quiz[aria-pressed="true"] { background: var(--zone-c); color: #15202b; border-color: var(--zone-c); }
+
+  /* Stage */
+  .stage { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  svg#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  svg#map:active { cursor: grabbing; }
+  .state { fill: var(--land); stroke: none; transition: fill-opacity .25s, fill .25s; cursor: pointer; }
+  .state.dim { fill-opacity: .42; }
+  .state.correct { fill: var(--good) !important; }
+  .state.wrong { fill: var(--bad) !important; }
+  .state.pulse { animation: pulse 1s ease-in-out 2; }
+  @keyframes pulse { 50% { fill-opacity: .25; } }
+  .borders { fill: none; stroke: var(--border); stroke-width: .7; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; opacity: .9; }
+  .coast { fill: none; stroke: var(--coast); stroke-width: 1.1; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; opacity: .85; }
+  .selected-outline { fill: none; stroke: var(--fg); stroke-width: 2.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .hover-outline { fill: none; stroke: var(--fg); stroke-width: 1.4; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; opacity: .8; }
+  .district { fill: transparent; stroke: var(--fg); stroke-width: .6; stroke-opacity: .45; vector-effect: non-scaling-stroke; cursor: pointer; }
+  .district:hover, .district.hi { fill: color-mix(in oklab, var(--fg) 12%, transparent); }
+  .district.hi { stroke-opacity: 1; stroke-width: 1.4; }
+  .geoline { fill: none; stroke: var(--fg-2); stroke-width: 1; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; opacity: .55; pointer-events: none; }
+  .capital { fill: var(--fg); stroke: var(--halo); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
+  .capital.national { fill: var(--zone-c); }
+
+  .label { font-family: var(--font-ui); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; text-anchor: middle; fill: var(--fg);
+    paint-order: stroke; stroke: var(--halo); stroke-width: 2.5px; stroke-linejoin: round; pointer-events: none; user-select: none; }
+  .label.light { fill: #ffffff; stroke: rgba(0,0,0,.55); }
+  .label.district { font-weight: 500; letter-spacing: .04em; text-transform: none; opacity: .92; }
+  .label.cap { font-weight: 500; text-transform: none; letter-spacing: 0; text-anchor: start; font-style: italic; }
+  .label.geo.end { text-anchor: end; }
+  .label.geo { font-weight: 500; text-transform: none; letter-spacing: .02em; text-anchor: start; fill: var(--fg-2); font-size: 11px; }
+  .pin { fill: var(--fg); stroke: var(--halo); stroke-width: 1.5; pointer-events: none; }
+  .pin-hit { fill: transparent; cursor: pointer; }
+
+  /* Floating UI */
+  .legend { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    background: var(--panel); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; max-width: min(320px, calc(100% - 32px)); font-size: 12.5px; }
+  .legend h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); font-weight: 600; }
+  .legend .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
+  .legend .chip { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .legend .chip i { width: 12px; height: 12px; border-radius: 3px; flex: none; border: 1px solid color-mix(in oklab, var(--fg) 25%, transparent); }
+  .legend .ramp { position: relative; height: 10px; border-radius: 5px; margin: 6px 0 4px; border: 1px solid color-mix(in oklab, var(--fg) 20%, transparent); }
+  .legend .ramp .mark { position: absolute; top: -4px; width: 2px; height: 18px; background: var(--fg); transform: translateX(-1px); border-radius: 1px; display: none; }
+  .legend .ends { display: flex; justify-content: space-between; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+  .legend .note { color: var(--fg-3); margin-top: 4px; }
+
+  .toolbar { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .toolbar button { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(8px); cursor: pointer; display: grid; place-items: center; }
+  .toolbar button:hover { background: var(--panel-solid); }
+  .toolbar button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .toolbar svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .tip { position: absolute; pointer-events: none; background: var(--panel-solid); color: var(--fg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 11px; box-shadow: var(--shadow); font-size: 13px; max-width: 240px; z-index: 6; transform: translate(-50%, calc(-100% - 14px)); }
+  .tip b { font-family: var(--font-display); font-weight: 600; font-size: 16px; display: block; line-height: 1.15; }
+  .tip .nat { color: var(--fg-2); font-size: 13px; }
+  .tip .row { color: var(--fg-2); margin-top: 3px; }
+  .tip .zone { display: inline-flex; align-items: center; gap: 5px; }
+  .tip .zone i { width: 9px; height: 9px; border-radius: 2px; }
+
+  /* Details card */
+  .card { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); top: 16px; width: min(340px, calc(100% - 32px)); max-height: calc(100% - 32px);
+    overflow: auto; background: var(--panel); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 16px 16px 14px; z-index: 7; }
+  .card .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .card h2 { font-family: var(--font-display); font-weight: 600; font-size: 26px; line-height: 1.05; margin: 0; text-wrap: balance; }
+  .card .nat { color: var(--fg-2); font-size: 16px; margin-top: 2px; }
+  .card .kind { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); font-weight: 600; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+  .card .kind i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .card .close { border: 0; background: transparent; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; color: var(--fg-2); display: grid; place-items: center; flex: none; }
+  .card .close:hover { background: color-mix(in oklab, var(--fg) 8%, transparent); }
+  .card .close svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-top: 14px; }
+  .stat { min-width: 0; }
+  .stat .l { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); font-weight: 600; }
+  .stat .v { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .stat .s { font-size: 12px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+  .stat.wide { grid-column: 1 / -1; }
+  .stat.wide .v { font-size: 14.5px; font-weight: 500; }
+  .rank { display: inline-block; white-space: nowrap; font-size: 11px; color: var(--fg-3); margin-left: 4px; font-weight: 500; }
+  .dlist { margin-top: 12px; }
+  .dlist .l { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); font-weight: 600; margin-bottom: 6px; }
+  .dlist .wrap { display: flex; flex-wrap: wrap; gap: 4px; }
+  .dlist button { font-size: 12px; padding: 3px 8px 2px; border-radius: 999px; border: 1px solid var(--line); background: transparent; cursor: pointer; color: var(--fg-2); }
+  .dlist button:hover, .dlist button.hi { border-color: var(--fg); color: var(--fg); }
+  .card .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .card .actions button { font-size: 13px; padding: 6px 12px 5px; border-radius: 999px; border: 1px solid var(--line); background: transparent; cursor: pointer; }
+  .card .actions button:hover { border-color: var(--fg); }
+  .card .linkbox { width: 100%; font-size: 12px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-solid); color: var(--fg-2); }
+  .card .foot { margin-top: 12px; font-size: 11.5px; color: var(--fg-3); line-height: 1.35; }
+
+  /* Quiz panel */
+  .quiz { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); background: var(--panel); backdrop-filter: blur(10px); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow); padding: 12px 16px; width: min(420px, calc(100% - 32px)); z-index: 7; text-align: center; }
+  .quiz .ask { font-size: 13px; color: var(--fg-3); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  .quiz .target { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1.1; margin: 2px 0 4px; text-wrap: balance; }
+  .quiz .fb { min-height: 20px; font-size: 14px; color: var(--fg-2); }
+  .quiz .fb.ok { color: var(--good); font-weight: 600; }
+  .quiz .fb.no { color: var(--bad); font-weight: 600; }
+  .quiz .score { display: flex; justify-content: center; gap: 18px; margin-top: 8px; font-size: 13px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+  .quiz .score b { color: var(--fg); font-weight: 600; }
+  .quiz .qa { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+  .quiz .qa button { font-size: 13px; padding: 6px 12px 5px; border-radius: 999px; border: 1px solid var(--line); background: transparent; cursor: pointer; }
+  .quiz .qa button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  .attrib { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); font-size: 11px; color: var(--fg-3); background: var(--panel); padding: 3px 8px; border-radius: 6px; max-width: 46%; text-align: right; }
+
+  @media (max-width: 720px) {
+    .brand .sub { display: none; }
+    .bar { gap: 8px 10px; padding-block: 8px; }
+    .brand h1 { font-size: 20px; }
+    .search { flex-basis: 140px; order: 2; }
+    .modes { order: 3; flex-basis: 100%; }
+    .card { right: 0; left: 0; top: auto; bottom: 0; width: 100%; max-height: 52%; border-radius: 16px 16px 0 0;
+      padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+    .card h2 { font-size: 22px; }
+    .legend { bottom: auto; top: 12px; left: 12px; padding: 8px 10px; font-size: 11.5px; max-width: 180px; }
+    .legend.tucked { display: none; }
+    .legend .chips { grid-template-columns: 1fr; gap: 2px; }
+    .toolbar { top: 12px; right: 12px; }
+    .toolbar button { width: 34px; height: 34px; }
+    .quiz { top: auto; bottom: 0; left: 0; right: 0; transform: none; width: 100%; border-radius: 16px 16px 0 0; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    .attrib { display: none; }
+    .tip { display: none !important; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .state { transition: none; }
+    .state.pulse { animation: none; fill-opacity: .4; }
+  }
+</style>
+
+<div id="app">
+  <header class="bar">
+    <div class="brand">
+      <h1>Bharat Atlas</h1>
+      <span class="sub">28 states · 8 union territories</span>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Find a state or district" autocomplete="off" aria-label="Find a state or district" aria-controls="sugg" aria-expanded="false">
+      <ul id="sugg" class="sugg" role="listbox" hidden></ul>
+    </div>
+    <nav class="modes" aria-label="Colour the map by">
+      <button type="button" id="mode-zones" data-mode="zones" aria-pressed="true">Zones</button>
+      <button type="button" id="mode-pop" data-mode="pop" aria-pressed="false">Population</button>
+      <button type="button" id="mode-density" data-mode="density" aria-pressed="false">Density</button>
+      <button type="button" id="mode-lit" data-mode="lit" aria-pressed="false">Literacy</button>
+      <button type="button" id="mode-area" data-mode="area" aria-pressed="false">Area</button>
+      <button type="button" id="mode-quiz" class="is-quiz" data-mode="quiz" aria-pressed="false">Quiz</button>
+    </nav>
+  </header>
+
+  <main class="stage" id="stage">
+    <svg id="map" role="img" aria-label="Map of India showing states and union territories"></svg>
+
+    <div class="legend" id="legend" aria-live="polite"></div>
+
+    <div class="toolbar">
+      <button type="button" id="btn-in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button type="button" id="btn-out" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button type="button" id="btn-reset" aria-label="Reset view"><svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 9a8 8 0 0 0-14.5-3M4 15a8 8 0 0 0 14.5 3"/></svg></button>
+      <button type="button" id="btn-lines" aria-label="Toggle Tropic of Cancer and IST meridian" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M3 12h18M12 3v18"/><circle cx="12" cy="12" r="9"/></svg></button>
+    </div>
+
+    <div class="tip" id="tip" hidden></div>
+    <aside class="card" id="card" hidden aria-live="polite"></aside>
+    <section class="quiz" id="quiz" hidden aria-live="polite"></section>
+    <div class="attrib">Borders: Survey of India (2019) via public GeoJSON · Figures: Census 2011</div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson-client/3.1.0/topojson-client.min.js"></script>
+<script>
+const TOPO = __TOPO_JSON__;
+
+// Zonal Councils of India (plus the North Eastern Council) as the default grouping.
+const ZONES = {
+  n:  { name: 'Northern',       token: '--zone-n' },
+  c:  { name: 'Central',        token: '--zone-c' },
+  w:  { name: 'Western',        token: '--zone-w' },
+  s:  { name: 'Southern',       token: '--zone-s' },
+  e:  { name: 'Eastern',        token: '--zone-e' },
+  ne: { name: 'North Eastern',  token: '--zone-ne' },
+};
+
+// Census 2011 population and literacy; areas in km². Capitals as [lon, lat].
+const INFO = {
+  'Andhra Pradesh':   { native:'ఆంధ్రప్రదేశ్', zone:'s', capital:'Amaravati', cap:[80.52,16.51], pop:49577103, area:162968, lit:67.0, formed:'1953-10-01', note:'First state formed on a linguistic basis; present borders since 2 June 2014', langs:['Telugu'] },
+  'Arunachal Pradesh':{ native:'', zone:'ne', capital:'Itanagar', cap:[93.62,27.10], pop:1383727, area:83743, lit:65.4, formed:'1987-02-20', note:'Union territory from 1972; statehood 1987', langs:['English'] },
+  'Assam':            { native:'অসম', zone:'ne', capital:'Dispur', cap:[91.79,26.14], pop:31205576, area:78438, lit:72.2, formed:'1950-01-26', note:'', langs:['Assamese','Bengali','Bodo'] },
+  'Bihar':            { native:'बिहार', zone:'e', capital:'Patna', cap:[85.14,25.59], pop:104099452, area:94163, lit:61.8, formed:'1950-01-26', note:'Province since 1912; Jharkhand carved out in 2000', langs:['Hindi','Urdu'] },
+  'Chhattisgarh':     { native:'छत्तीसगढ़', zone:'c', capital:'Raipur', cap:[81.63,21.25], pop:25545198, area:135192, lit:70.3, formed:'2000-11-01', note:'Carved out of Madhya Pradesh', langs:['Hindi','Chhattisgarhi'] },
+  'Goa':              { native:'गोंय', zone:'w', capital:'Panaji', cap:[73.83,15.50], pop:1458545, area:3702, lit:88.7, formed:'1987-05-30', note:'Smallest state by area', langs:['Konkani'] },
+  'Gujarat':          { native:'ગુજરાત', zone:'w', capital:'Gandhinagar', cap:[72.64,23.22], pop:60439692, area:196244, lit:78.0, formed:'1960-05-01', note:'Split from Bombay State with Maharashtra', langs:['Gujarati'] },
+  'Haryana':          { native:'हरियाणा', zone:'n', capital:'Chandigarh', cap:[76.78,30.73], pop:25351462, area:44212, lit:75.6, formed:'1966-11-01', note:'Carved out of Punjab', langs:['Hindi','Punjabi'] },
+  'Himachal Pradesh': { native:'हिमाचल प्रदेश', zone:'n', capital:'Shimla', cap:[77.17,31.10], pop:6864602, area:55673, lit:82.8, formed:'1971-01-25', note:'', langs:['Hindi','Sanskrit'] },
+  'Jharkhand':        { native:'झारखण्ड', zone:'e', capital:'Ranchi', cap:[85.31,23.34], pop:32988134, area:79716, lit:66.4, formed:'2000-11-15', note:'Carved out of Bihar', langs:['Hindi'] },
+  'Karnataka':        { native:'ಕರ್ನಾಟಕ', zone:'s', capital:'Bengaluru', cap:[77.59,12.97], pop:61095297, area:191791, lit:75.4, formed:'1956-11-01', note:'Mysore State until 1973', langs:['Kannada'] },
+  'Kerala':           { native:'കേരളം', zone:'s', capital:'Thiruvananthapuram', cap:[76.94,8.52], pop:33406061, area:38852, lit:94.0, formed:'1956-11-01', note:'Highest literacy rate in India', langs:['Malayalam'] },
+  'Madhya Pradesh':   { native:'मध्य प्रदेश', zone:'c', capital:'Bhopal', cap:[77.41,23.26], pop:72626809, area:308252, lit:69.3, formed:'1956-11-01', note:'Chhattisgarh carved out in 2000', langs:['Hindi'] },
+  'Maharashtra':      { native:'महाराष्ट्र', zone:'w', capital:'Mumbai', cap:[72.88,19.08], pop:112374333, area:307713, lit:82.3, formed:'1960-05-01', note:'Split from Bombay State with Gujarat', langs:['Marathi'] },
+  'Manipur':          { native:'মণিপুর', zone:'ne', capital:'Imphal', cap:[93.94,24.82], pop:2855794, area:22327, lit:76.9, formed:'1972-01-21', note:'', langs:['Meitei'] },
+  'Meghalaya':        { native:'', zone:'ne', capital:'Shillong', cap:[91.88,25.58], pop:2966889, area:22429, lit:74.4, formed:'1972-01-21', note:'Carved out of Assam', langs:['English'] },
+  'Mizoram':          { native:'', zone:'ne', capital:'Aizawl', cap:[92.72,23.73], pop:1097206, area:21081, lit:91.3, formed:'1987-02-20', note:'', langs:['Mizo','English'] },
+  'Nagaland':         { native:'', zone:'ne', capital:'Kohima', cap:[94.11,25.67], pop:1978502, area:16579, lit:79.6, formed:'1963-12-01', note:'', langs:['English'] },
+  'Odisha':           { native:'ଓଡ଼ିଶା', zone:'e', capital:'Bhubaneswar', cap:[85.82,20.30], pop:41974218, area:155707, lit:72.9, formed:'1936-04-01', note:'Orissa Province; renamed Odisha in 2011', langs:['Odia'] },
+  'Punjab':           { native:'ਪੰਜਾਬ', zone:'n', capital:'Chandigarh', cap:[76.78,30.73], pop:27743338, area:50362, lit:75.8, formed:'1966-11-01', note:'Present borders since the 1966 reorganisation', langs:['Punjabi'] },
+  'Rajasthan':        { native:'राजस्थान', zone:'n', capital:'Jaipur', cap:[75.79,26.91], pop:68548437, area:342239, lit:66.1, formed:'1949-03-30', note:'Largest state by area', langs:['Hindi'] },
+  'Sikkim':           { native:'सिक्किम', zone:'ne', capital:'Gangtok', cap:[88.61,27.33], pop:610577, area:7096, lit:81.4, formed:'1975-05-16', note:'Least populous state', langs:['Nepali','English'] },
+  'Tamil Nadu':       { native:'தமிழ்நாடு', zone:'s', capital:'Chennai', cap:[80.27,13.08], pop:72147030, area:130060, lit:80.1, formed:'1950-01-26', note:'Madras State until 1969', langs:['Tamil'] },
+  'Telangana':        { native:'తెలంగాణ', zone:'s', capital:'Hyderabad', cap:[78.49,17.39], pop:35003674, area:112077, lit:66.5, formed:'2014-06-02', note:'Youngest state; carved out of Andhra Pradesh', langs:['Telugu','Urdu'] },
+  'Tripura':          { native:'ত্রিপুরা', zone:'ne', capital:'Agartala', cap:[91.28,23.83], pop:3673917, area:10486, lit:87.2, formed:'1972-01-21', note:'', langs:['Bengali','Kokborok','English'] },
+  'Uttar Pradesh':    { native:'उत्तर प्रदेश', zone:'c', capital:'Lucknow', cap:[80.95,26.85], pop:199812341, area:240928, lit:67.7, formed:'1950-01-26', note:'Most populous state; United Provinces until 1950', langs:['Hindi','Urdu'] },
+  'Uttarakhand':      { native:'उत्तराखण्ड', zone:'c', capital:'Dehradun', cap:[78.03,30.32], pop:10086292, area:53483, lit:78.8, formed:'2000-11-09', note:'Carved out of Uttar Pradesh; Uttaranchal until 2007', langs:['Hindi','Sanskrit'] },
+  'West Bengal':      { native:'পশ্চিমবঙ্গ', zone:'e', capital:'Kolkata', cap:[88.36,22.57], pop:91276115, area:88752, lit:76.3, formed:'1950-01-26', note:'', langs:['Bengali','Nepali'] },
+  'Andaman and Nicobar Islands': { ut:true, native:'अंडमान और निकोबार द्वीपसमूह', zone:'e', capital:'Port Blair (Sri Vijaya Puram)', cap:[92.74,11.62], pop:380581, area:8249, lit:86.6, formed:'1956-11-01', note:'572 islands; about 37 inhabited', langs:['Hindi','English'] },
+  'Chandigarh':       { ut:true, native:'चंडीगढ़', zone:'n', capital:'Chandigarh', cap:[76.78,30.73], pop:1055450, area:114, lit:86.0, formed:'1966-11-01', note:'Capital of both Punjab and Haryana', langs:['English'] },
+  'Dadra and Nagar Haveli and Daman and Diu': { ut:true, native:'દાદરા અને નગર હવેલી અને દમણ અને દીવ', zone:'w', capital:'Daman', cap:[72.83,20.40], pop:586956, area:603, lit:80.7, formed:'2020-01-26', note:'Two union territories merged into one', langs:['Gujarati','Konkani','Marathi','Hindi'] },
+  'Delhi':            { ut:true, native:'दिल्ली', zone:'n', capital:'New Delhi', cap:[77.21,28.61], pop:16787941, area:1484, lit:86.2, formed:'1956-11-01', note:'National Capital Territory since 1992', langs:['Hindi','English','Punjabi','Urdu'] },
+  'Jammu and Kashmir':{ ut:true, native:'جموں و کشمیر', zone:'n', capital:'Srinagar (summer) · Jammu (winter)', cap:[74.80,34.08], pop:12267013, area:42241, lit:67.2, formed:'2019-10-31', note:'Area shown is the administered area', langs:['Kashmiri','Dogri','Urdu','Hindi','English'] },
+  'Ladakh':           { ut:true, native:'ལ་དྭགས', zone:'n', capital:'Leh', cap:[77.58,34.16], pop:274289, area:59146, lit:74.0, formed:'2019-10-31', note:'Area shown is the administered area; least dense territory', langs:['Hindi','Urdu','Bhoti','Purgi','English'] },
+  'Lakshadweep':      { ut:true, native:'ലക്ഷദ്വീപ്', zone:'s', capital:'Kavaratti', cap:[72.64,10.57], pop:64473, area:32, lit:91.8, formed:'1956-11-01', note:'36 islands; the smallest territory by both area and population', langs:['Malayalam'] },
+  'Puducherry':       { ut:true, native:'புதுச்சேரி', zone:'s', capital:'Puducherry', cap:[79.81,11.93], pop:1247953, area:479, lit:85.8, formed:'1963-07-01', note:'Four former French enclaves on two coasts', langs:['Tamil','French','English','Telugu','Malayalam'] },
+};
+
+// ---------- data ----------
+const statesFC = topojson.feature(TOPO, TOPO.objects.states);
+const states = statesFC.features.map(f => Object.assign(f, { info: INFO[f.properties.name] }));
+const districts = topojson.feature(TOPO, TOPO.objects.districts).features;
+const interior = topojson.mesh(TOPO, TOPO.objects.states, (a, b) => a !== b);
+const coastline = topojson.mesh(TOPO, TOPO.objects.states, (a, b) => a === b);
+const byName = new Map(states.map(s => [s.properties.name, s]));
+const slug = n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const bySlug = new Map(states.map(s => [slug(s.properties.name), s]));
+states.forEach(s => { s.info.density = s.info.pop / s.info.area; });
+const rankOf = (key, dir = -1) => { const sorted = states.slice().sort((a, b) => dir * (a.info[key] - b.info[key])); const m = new Map(); sorted.forEach((s, i) => m.set(s.properties.name, i + 1)); return m; };
+const RANKS = { pop: rankOf('pop'), area: rankOf('area'), density: rankOf('density'), lit: rankOf('lit') };
+
+// Lines of real cartographic meaning: Tropic of Cancer and the Indian Standard Time meridian.
+const TROPIC = 23.43622, IST_LON = 82.5;
+const tropicLine = { type: 'LineString', coordinates: d3.range(66, 103.51, 0.25).map(x => [x, TROPIC]) };
+const istLine = { type: 'LineString', coordinates: d3.range(5, 38.01, 0.25).map(y => [IST_LON, y]) };
+
+// ---------- formatting (Indian numbering) ----------
+const fmtIN = n => Math.round(n).toLocaleString('en-IN');
+const fmtBig = n => n >= 1e7 ? (n / 1e7).toFixed(n >= 1e8 ? 1 : 2) + ' crore' : n >= 1e5 ? (n / 1e5).toFixed(1) + ' lakh' : fmtIN(n);
+const fmtDate = iso => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+const fmtArea = n => fmtIN(n) + ' km²';
+const MODES = {
+  zones:   { label: 'Zonal council' },
+  pop:     { label: 'Population (2011)', value: s => s.info.pop, scale: () => d3.scaleSequentialSqrt(), fmt: fmtBig },
+  density: { label: 'People per km²', value: s => s.info.density, scale: () => d3.scaleSequentialLog(), fmt: n => fmtIN(n) + ' /km²' },
+  lit:     { label: 'Literacy rate (2011)', value: s => s.info.lit, scale: () => d3.scaleSequential(), fmt: n => n.toFixed(1) + '%' },
+  area:    { label: 'Area', value: s => s.info.area, scale: () => d3.scaleSequentialSqrt(), fmt: fmtArea },
+  quiz:    { label: 'Find the state' },
+};
+
+// ---------- DOM ----------
+const stage = document.getElementById('stage');
+const svg = d3.select('#map');
+const defs = svg.append('defs');
+const gWorld = svg.append('g').attr('class', 'world');
+const gStates = gWorld.append('g');
+const gLines = gWorld.append('g');
+const gBorders = gWorld.append('g');
+const gDistricts = gWorld.append('g');
+const gOutline = gWorld.append('g');
+const gCapitals = gWorld.append('g');
+const gScreen = svg.append('g').attr('class', 'screen'); // not transformed: labels & pins keep screen size
+const gPins = gScreen.append('g');
+const gLabels = gScreen.append('g');
+const tip = document.getElementById('tip');
+const card = document.getElementById('card');
+const quizEl = document.getElementById('quiz');
+const legend = document.getElementById('legend');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const coarse = matchMedia('(pointer: coarse)').matches;
+
+const projection = d3.geoMercator();
+const path = d3.geoPath(projection);
+let T = d3.zoomIdentity, W = 0, H = 0;
+let mode = 'zones', selected = null, hovered = null, hiDistrict = null, showLines = true;
+let colorOf = () => null, tints = {};
+const zoneColor = z => tints[z];
+
+// ---------- label fitting ----------
+const measureCanvas = document.createElement('canvas').getContext('2d');
+function textWidth(str, font, tracking) { measureCanvas.font = font; return measureCanvas.measureText(str).width + Math.max(0, str.length - 1) * tracking * 100; }
+function splits(words) {
+  const out = [[words.join(' ')]];
+  if (words.length >= 2) for (let i = 1; i < words.length; i++) out.push([words.slice(0, i).join(' '), words.slice(i).join(' ')]);
+  if (words.length >= 3) for (let i = 1; i < words.length - 1; i++) for (let j = i + 1; j < words.length; j++) out.push([words.slice(0, i).join(' '), words.slice(i, j).join(' '), words.slice(j).join(' ')]);
+  return out;
+}
+function prepareLabel(f, text, { upper, font, tracking, cap, min }) {
+  const words = (upper ? text.toUpperCase() : text).split(' ');
+  f.layouts = splits(words).map(lines => ({ lines, w: Math.max(...lines.map(l => textWidth(l, font, tracking))) / 100, h: lines.length * 1.08 }));
+  f.cap = cap; f.min = min;
+}
+function fitLabel(f, rpx) {
+  let best = null;
+  for (const L of f.layouts) {
+    const size = Math.min(f.cap, (2 * rpx * 0.94) / L.w, (2 * rpx * 0.94) / L.h);
+    if (!best || size > best.size) best = { size, lines: L.lines };
+  }
+  return best && best.size >= f.min ? best : null;
+}
+function prepareAll() {
+  const fontS = '600 100px Hind, "Segoe UI", Arial, sans-serif';
+  const fontD = '500 100px Hind, "Segoe UI", Arial, sans-serif';
+  states.forEach(s => prepareLabel(s, s.properties.name, { upper: true, font: fontS, tracking: 0.08, cap: 15, min: 6.5 }));
+  districts.forEach(d => prepareLabel(d, d.properties.name, { upper: false, font: fontD, tracking: 0.04, cap: 12, min: 7 }));
+}
+
+// ---------- build ----------
+function size() {
+  W = stage.clientWidth; H = stage.clientHeight;
+  const padR = W > 720 ? 40 : 16;
+  projection.fitExtent([[16, 16], [W - padR, H - 16]], statesFC);
+  states.forEach(s => { s.anchor = projection([s.properties.lx, s.properties.ly]); s.r = s.properties.lr * projection.scale(); });
+  districts.forEach(d => { d.anchor = projection([d.properties.lx, d.properties.ly]); d.r = d.properties.lr * projection.scale(); });
+}
+
+function build() {
+  size();
+  gStates.selectAll('path').data(states, d => d.properties.name).join('path')
+    .attr('class', 'state').attr('d', path)
+    .attr('aria-label', d => d.properties.name)
+    .on('pointerenter', (ev, d) => { if (ev.pointerType === 'mouse') hover(d, ev); })
+    .on('pointermove', (ev, d) => { if (ev.pointerType === 'mouse') moveTip(ev); })
+    .on('pointerleave', () => hover(null))
+    .on('click', (ev, d) => { ev.stopPropagation(); onPick(d); });
+  gLines.selectAll('path').data([tropicLine, istLine]).join('path').attr('class', 'geoline').attr('d', path);
+  gBorders.selectAll('path').data([interior, coastline]).join('path').attr('class', (d, i) => i ? 'coast' : 'borders').attr('d', path);
+  gCapitals.selectAll('circle').data(states).join('circle')
+    .attr('class', d => 'capital' + (d.properties.name === 'Delhi' ? ' national' : ''))
+    .attr('cx', d => projection(d.info.cap)[0]).attr('cy', d => projection(d.info.cap)[1]);
+  const tiny = states.filter(s => !fitLabel(s, s.r));
+  const pins = gPins.selectAll('g').data(tiny, d => d.properties.name).join(enter => {
+    const g = enter.append('g');
+    g.append('circle').attr('class', 'pin-hit').attr('r', 12)
+      .on('pointerenter', (ev, d) => { if (ev.pointerType === 'mouse') hover(d, ev); })
+      .on('pointerleave', () => hover(null))
+      .on('click', (ev, d) => { ev.stopPropagation(); onPick(d); });
+    g.append('circle').attr('class', 'pin').attr('r', 3.5);
+    return g;
+  });
+  layoutScreen();
+  paint();
+  drawDistricts();
+}
+
+// Everything in screen space (labels, pins, capital radius) is re-laid on each zoom.
+function layoutScreen() {
+  const k = T.k;
+  const quiz = mode === 'quiz';
+  const data = [];
+  if (!quiz) for (const s of states) {
+    const fit = (s === selected && k >= 2.5) ? null : fitLabel(s, s.r * k);
+    s.labelVisible = !!fit || (s === selected && k >= 2.5);
+    if (!fit) continue;
+    const [x, y] = T.apply(s.anchor);
+    if (x < -50 || y < -50 || x > W + 50 || y > H + 50) continue;
+    const dark = isDarkFill(s);
+    data.push({ id: 's:' + s.properties.name, x, y, size: fit.size, lines: fit.lines, cls: 'label' + (dark ? ' light' : ''), dy: fit.size * 1.08 });
+  } else states.forEach(s => s.labelVisible = false);
+  if (selected && !quiz) {
+    for (const d of selected.districtFeatures) {
+      const fit = fitLabel(d, d.r * k);
+      if (!fit) continue;
+      const [x, y] = T.apply(d.anchor);
+      if (x < -50 || y < -50 || x > W + 50 || y > H + 50) continue;
+      data.push({ id: 'd:' + d.properties.name, x, y, size: fit.size, lines: fit.lines, cls: 'label district', dy: fit.size * 1.08 });
+    }
+    if (k >= 2.5) {
+      const [x, y] = T.apply(projection(selected.info.cap));
+      data.push({ id: 'cap', x: x + 7, y: y + 4, size: 12, lines: [selected.info.capital.split(' (')[0].split(' ·')[0]], cls: 'label cap', dy: 13, noCenter: true });
+    }
+  }
+  if (showLines && !quiz) {
+    const [ex, ty] = T.apply(projection([103.5, TROPIC])), wx = T.applyX(projection([66, TROPIC])[0]);
+    if (ty > 20 && ty < H) {
+      if (ex <= W - 6) data.push({ id: 'tropic', x: ex, y: ty - 5, size: 11, lines: ['Tropic of Cancer · 23°26′N'], cls: 'label geo end', dy: 12, noCenter: true });
+      else if (wx >= 6) data.push({ id: 'tropic', x: wx, y: ty - 5, size: 11, lines: ['Tropic of Cancer · 23°26′N'], cls: 'label geo', dy: 12, noCenter: true });
+    }
+    const [ix, iy] = T.apply(projection([IST_LON, 7.2]));
+    if (ix > 0 && ix < W) data.push({ id: 'ist', x: ix + 5, y: Math.min(iy, H - 40), size: 11, lines: ['IST meridian · 82°30′E'], cls: 'label geo', dy: 12, noCenter: true });
+  }
+  gLabels.selectAll('text').data(data, d => d.id).join('text')
+    .attr('class', d => d.cls)
+    .attr('transform', d => `translate(${d.x},${d.y})`)
+    .style('font-size', d => d.size + 'px')
+    .each(function (d) {
+      const t = d3.select(this);
+      const first = d.noCenter ? 0 : -((d.lines.length - 1) * d.dy) / 2 + d.size * 0.35;
+      t.selectAll('tspan').data(d.lines).join('tspan').attr('x', 0).attr('y', (l, i) => first + i * d.dy).text(l => l);
+    });
+  gPins.selectAll('g').attr('transform', d => { const [x, y] = T.apply(d.anchor); return `translate(${x},${y})`; }).style('display', d => d.labelVisible ? 'none' : null);
+  gCapitals.selectAll('circle').attr('r', 3 / k).style('display', d => quiz || (k < 2.2 && d !== selected) ? 'none' : null);
+}
+
+// ---------- colour ----------
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function isDarkFill(s) { const c = colorOf(s); if (!c) return false; return d3.hcl(c).l < 58; }
+function paint() {
+  const land = cssVar('--land'), mix = parseFloat(cssVar('--tint-mix')) / 100;
+  tints = {}; for (const z in ZONES) tints[z] = d3.interpolateLab(land, cssVar(ZONES[z].token))(mix);
+  if (mode === 'zones' || mode === 'quiz') {
+    colorOf = s => tints[s.info.zone];
+  } else {
+    const m = MODES[mode];
+    const vals = states.map(m.value);
+    const scale = m.scale().domain([d3.min(vals), d3.max(vals)]).interpolator(d3.interpolateLab(cssVar('--seq-lo'), cssVar('--seq-hi')));
+    colorOf = s => scale(m.value(s));
+    colorOf.scale = scale;
+  }
+  gStates.selectAll('path').style('fill', d => colorOf(d));
+  renderLegend();
+  layoutScreen();
+}
+function renderLegend() {
+  if (mode === 'quiz') { legend.hidden = true; return; }
+  legend.hidden = false;
+  if (mode === 'zones') {
+    legend.innerHTML = `<h2>Zonal councils</h2><div class="chips">${Object.entries(ZONES).map(([k, z]) => `<div class="chip"><i style="background:${zoneColor(k)}"></i>${z.name}</div>`).join('')}</div>`;
+    return;
+  }
+  const m = MODES[mode], sc = colorOf.scale, [lo, hi] = sc.domain();
+  const stops = d3.range(0, 1.0001, 0.1).map(t => sc.interpolator()(t));
+  const loS = states.find(s => m.value(s) === lo), hiS = states.find(s => m.value(s) === hi);
+  legend.innerHTML = `<h2>${m.label}</h2><div class="ramp" style="background:linear-gradient(90deg,${stops.join(',')})"><div class="mark" id="legend-mark"></div></div>
+    <div class="ends"><span>${m.fmt(lo)}</span><span>${m.fmt(hi)}</span></div>
+    <div class="note">${loS.properties.name} to ${hiS.properties.name}${mode === 'density' ? ' · log scale' : mode === 'lit' ? '' : ' · square-root scale'}</div>`;
+}
+function legendMark(s) {
+  const mk = document.getElementById('legend-mark'); if (!mk) return;
+  if (!s || mode === 'zones' || mode === 'quiz') { mk.style.display = 'none'; return; }
+  const sc = colorOf.scale; const v = MODES[mode].value(s);
+  const t = sc.copy().interpolator(x => x)(v);
+  mk.style.display = 'block'; mk.style.left = (t * 100) + '%';
+}
+
+// ---------- interaction ----------
+const zoom = d3.zoom().scaleExtent([1, 48]).on('zoom', ev => { T = ev.transform; gWorld.attr('transform', T); layoutScreen(); });
+svg.call(zoom).on('dblclick.zoom', null);
+svg.on('click', () => { if (mode !== 'quiz') select(null); });
+document.getElementById('btn-in').onclick = () => svg.transition().duration(reduceMotion ? 0 : 250).call(zoom.scaleBy, 1.6);
+document.getElementById('btn-out').onclick = () => svg.transition().duration(reduceMotion ? 0 : 250).call(zoom.scaleBy, 1 / 1.6);
+document.getElementById('btn-reset').onclick = () => { select(null); resetView(); };
+document.getElementById('btn-lines').onclick = e => { showLines = !showLines; e.currentTarget.setAttribute('aria-pressed', showLines); gLines.style('display', showLines ? null : 'none'); layoutScreen(); };
+function resetView() { svg.transition().duration(reduceMotion ? 0 : 600).call(zoom.transform, d3.zoomIdentity); }
+function zoomTo(feature, maxK = 12) {
+  const [[x0, y0], [x1, y1]] = path.bounds(feature);
+  const wide = W > 720; const cardW = wide && selected ? 370 : 0; const sheetH = !wide && selected ? H * 0.5 : 0;
+  const availW = W - cardW - 32, availH = H - sheetH - 32;
+  const k = Math.max(1, Math.min(maxK, 0.85 / Math.max((x1 - x0) / availW, (y1 - y0) / availH)));
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const t = d3.zoomIdentity.translate(availW / 2 + 16 - k * cx, availH / 2 + 16 - k * cy).scale(k);
+  svg.transition().duration(reduceMotion ? 0 : 750).call(zoom.transform, t);
+}
+
+function hover(s, ev) {
+  hovered = s;
+  gOutline.selectAll('.hover-outline').data(s && s !== selected ? [s] : []).join('path').attr('class', 'hover-outline').attr('d', path);
+  legendMark(s);
+  if (!s || coarse) { tip.hidden = true; return; }
+  const i = s.info; const zc = zoneColor(i.zone);
+  const extra = mode !== 'zones' && mode !== 'quiz' ? `<div class="row">${MODES[mode].label}: <b style="display:inline;font:inherit;font-weight:600">${MODES[mode].fmt(MODES[mode].value(s))}</b></div>` : '';
+  tip.innerHTML = mode === 'quiz' ? '' : `<b>${s.properties.name}</b>${i.native ? `<div class="nat">${i.native}</div>` : ''}
+    <div class="row">${i.ut ? 'Union territory' : 'State'} · <span class="zone"><i style="background:${zc}"></i>${ZONES[i.zone].name} zone</span></div>
+    <div class="row">Capital ${i.capital.split(' (')[0]} · ${fmtBig(i.pop)} people</div>${extra}`;
+  tip.hidden = mode === 'quiz';
+  moveTip(ev);
+}
+function moveTip(ev) {
+  if (tip.hidden) return;
+  const r = stage.getBoundingClientRect();
+  let x = ev.clientX - r.left, y = ev.clientY - r.top;
+  const tw = tip.offsetWidth; x = Math.max(tw / 2 + 6, Math.min(W - tw / 2 - 6, x));
+  if (y < tip.offsetHeight + 20) { tip.style.transform = 'translate(-50%, 18px)'; } else tip.style.transform = '';
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+
+function onPick(s) { if (mode === 'quiz') return quizAnswer(s); select(s === selected ? null : s, true); }
+function select(s, doZoom) {
+  if (s) s.districtFeatures = s.districtFeatures || districts.filter(d => d.properties.state === s.properties.name);
+  selected = s; hiDistrict = null;
+  gStates.selectAll('path').classed('dim', d => s && d !== s);
+  gOutline.selectAll('.selected-outline').data(s ? [s] : []).join('path').attr('class', 'selected-outline').attr('d', path);
+  drawDistricts();
+  renderCard();
+  if (s && doZoom) zoomTo(s);
+  if (!s && doZoom) resetView();
+  layoutScreen();
+}
+function drawDistricts() {
+  const feats = selected ? selected.districtFeatures : [];
+  defs.selectAll('clipPath').data(selected ? [selected] : []).join('clipPath').attr('id', 'clip-sel').selectAll('path').data(d => [d]).join('path').attr('d', path);
+  gDistricts.attr('clip-path', selected ? 'url(#clip-sel)' : null)
+    .selectAll('path').data(feats, d => d.properties.state + '/' + d.properties.name).join('path')
+    .attr('class', 'district').attr('d', path)
+    .classed('hi', d => d === hiDistrict)
+    .on('pointerenter', (ev, d) => { if (ev.pointerType === 'mouse') { hover(selected, ev); tip.innerHTML = `<b>${d.properties.name}</b><div class="row">District of ${selected.properties.name}</div>`; } })
+    .on('pointermove', (ev) => { if (ev.pointerType === 'mouse') moveTip(ev); })
+    .on('pointerleave', () => hover(null))
+    .on('click', (ev, d) => { ev.stopPropagation(); highlightDistrict(d, true); });
+}
+function highlightDistrict(d, doZoom) {
+  hiDistrict = d;
+  gDistricts.selectAll('path').classed('hi', x => x === d);
+  card.querySelectorAll('.dlist button').forEach(b => b.classList.toggle('hi', b.dataset.d === d.properties.name));
+  if (doZoom) zoomTo(d, 12);
+}
+
+function renderCard() {
+  legend.classList.toggle('tucked', !!selected);
+  if (!selected) { card.hidden = true; return; }
+  const s = selected, i = s.info, n = s.properties.name;
+  const zc = zoneColor(i.zone);
+  const rk = k => `<span class="rank">#${RANKS[k].get(n)} of 36</span>`;
+  const dl = s.districtFeatures.slice().sort((a, b) => a.properties.name.localeCompare(b.properties.name));
+  card.innerHTML = `
+    <div class="top"><div>
+      <div class="kind"><i style="background:${zc}"></i>${i.ut ? 'Union territory' : 'State'} · ${ZONES[i.zone].name} zone</div>
+      <h2>${n}</h2>${i.native ? `<div class="nat">${i.native}</div>` : ''}
+    </div><button type="button" class="close" id="card-close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="stats">
+      <div class="stat wide"><div class="l">Capital</div><div class="v">${i.capital}</div></div>
+      <div class="stat"><div class="l">Population</div><div class="v">${fmtBig(i.pop)}${rk('pop')}</div><div class="s">${fmtIN(i.pop)} · Census 2011</div></div>
+      <div class="stat"><div class="l">Area</div><div class="v">${fmtIN(i.area)} km²${rk('area')}</div><div class="s">${(i.area / 3287263 * 100).toFixed(1)}% of India</div></div>
+      <div class="stat"><div class="l">Density</div><div class="v">${fmtIN(i.density)} /km²${rk('density')}</div></div>
+      <div class="stat"><div class="l">Literacy</div><div class="v">${i.lit.toFixed(1)}%${rk('lit')}</div></div>
+      <div class="stat"><div class="l">${i.ut ? 'Formed' : 'Statehood'}</div><div class="v" style="font-size:14.5px">${fmtDate(i.formed)}</div></div>
+      <div class="stat"><div class="l">Official languages</div><div class="v" style="font-size:14.5px;font-weight:500">${i.langs.join(', ')}</div></div>
+    </div>
+    ${i.note ? `<div class="foot">${i.note}.</div>` : ''}
+    <div class="dlist"><div class="l">${dl.length} districts (2011 census frame)</div><div class="wrap">${dl.map(d => `<button type="button" data-d="${d.properties.name}">${d.properties.name}</button>`).join('')}</div></div>
+    <div class="actions"><button type="button" id="btn-copy">Copy link to ${i.ut ? 'territory' : 'state'}</button><span id="copy-msg" class="s" style="font-size:12px;color:var(--fg-3)"></span></div>`;
+  card.hidden = false; card.scrollTop = 0;
+  card.querySelector('#card-close').onclick = () => select(null, true);
+  card.querySelectorAll('.dlist button').forEach(b => b.onclick = () => highlightDistrict(dl.find(d => d.properties.name === b.dataset.d), true));
+  card.querySelector('#btn-copy').onclick = () => {
+    const link = location.href.split('#')[0] + '#' + slug(n), msg = card.querySelector('#copy-msg');
+    const fallback = () => { const inp = document.createElement('input'); inp.className = 'linkbox'; inp.value = link; inp.readOnly = true; msg.replaceWith(inp); inp.select(); };
+    try { navigator.clipboard.writeText(link).then(() => { msg.textContent = 'Copied'; }, fallback); } catch (e) { fallback(); }
+  };
+}
+
+// ---------- modes ----------
+document.querySelectorAll('.modes button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+function setMode(m) {
+  const wasQuiz = mode === 'quiz';
+  mode = m;
+  document.querySelectorAll('.modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  if (m === 'quiz') { select(null, true); startQuiz(); } else if (wasQuiz) { endQuiz(); }
+  try { localStorage.setItem('atlas-mode', m === 'quiz' ? 'zones' : m); } catch (e) {}
+  paint();
+}
+
+// ---------- quiz ----------
+let Q = null;
+function startQuiz() {
+  const pool = d3.shuffle(states.slice());
+  let best = 0; try { best = +localStorage.getItem('atlas-best-streak') || 0; } catch (e) {}
+  Q = { pool, i: 0, asked: 0, correct: 0, streak: 0, best, busy: false };
+  quizEl.hidden = false; tip.hidden = true;
+  nextQuestion();
+}
+function endQuiz() { Q = null; quizEl.hidden = true; gStates.selectAll('path').classed('correct wrong pulse', false); }
+function nextQuestion() {
+  if (!Q) return;
+  if (Q.i >= Q.pool.length) {
+    quizEl.innerHTML = `<div class="ask">Round complete</div><div class="target">${Q.correct} of ${Q.asked} found</div>
+      <div class="fb">Best streak ${Math.max(Q.best, Q.streak)}</div>
+      <div class="qa"><button type="button" class="primary" id="q-again">Play again</button><button type="button" id="q-exit">Back to the atlas</button></div>`;
+    quizEl.querySelector('#q-again').onclick = startQuiz;
+    quizEl.querySelector('#q-exit').onclick = () => setMode('zones');
+    return;
+  }
+  Q.target = Q.pool[Q.i]; Q.busy = false;
+  renderQuiz('');
+}
+function renderQuiz(fb, cls = '') {
+  const t = Q.target;
+  quizEl.innerHTML = `<div class="ask">Tap to find · ${Q.i + 1} of ${Q.pool.length}</div><div class="target">${t.properties.name}</div>
+    <div class="fb ${cls}">${fb || (t.info.ut ? 'A union territory' : 'A state')}</div>
+    <div class="score"><span>Score <b>${Q.correct}/${Q.asked}</b></span><span>Streak <b>${Q.streak}</b></span><span>Best <b>${Math.max(Q.best, Q.streak)}</b></span></div>
+    <div class="qa"><button type="button" id="q-skip">Skip</button></div>`;
+  quizEl.querySelector('#q-skip').onclick = () => { if (Q.busy) return; Q.asked++; Q.streak = 0; reveal(t, null, `It was here.`); };
+}
+function quizAnswer(picked) {
+  if (!Q || Q.busy) return;
+  Q.asked++;
+  if (picked === Q.target) {
+    Q.correct++; Q.streak++;
+    if (Q.streak > Q.best) { Q.best = Q.streak; try { localStorage.setItem('atlas-best-streak', String(Q.best)); } catch (e) {} }
+    reveal(Q.target, null, 'Correct');
+  } else {
+    Q.streak = 0;
+    reveal(Q.target, picked, `That was ${picked.properties.name}`);
+  }
+}
+function reveal(target, wrong, text) {
+  Q.busy = true;
+  const paths = gStates.selectAll('path');
+  paths.filter(d => d === target).classed('correct', true).classed('pulse', !!wrong || text === 'It was here.');
+  if (wrong) paths.filter(d => d === wrong).classed('wrong', true);
+  renderQuiz(text, text === 'Correct' ? 'ok' : 'no');
+  if (wrong || text !== 'Correct') { // pan toward the answer when it was missed
+    const [[x0, y0], [x1, y1]] = path.bounds(target);
+    const sx = T.applyX((x0 + x1) / 2), sy = T.applyY((y0 + y1) / 2);
+    if (sx < 40 || sy < 120 || sx > W - 40 || sy > H - 40) zoomTo(target, Math.max(1, T.k));
+  }
+  setTimeout(() => { paths.classed('correct wrong pulse', false); Q.i++; nextQuestion(); }, wrong || text !== 'Correct' ? 1800 : 700);
+}
+
+// ---------- search ----------
+const q = document.getElementById('q'), sugg = document.getElementById('sugg');
+const INDEX = [...states.map(s => ({ name: s.properties.name, kind: s.info.ut ? 'Union territory' : 'State', s })),
+  ...districts.map(d => ({ name: d.properties.name, kind: d.properties.state, s: byName.get(d.properties.state), d }))];
+let suggItems = [], suggSel = -1;
+q.addEventListener('input', () => {
+  const v = q.value.trim().toLowerCase();
+  if (!v) return closeSugg();
+  suggItems = INDEX.filter(x => x.name.toLowerCase().includes(v)).sort((a, b) => (a.d ? 1 : 0) - (b.d ? 1 : 0) || a.name.toLowerCase().indexOf(v) - b.name.toLowerCase().indexOf(v)).slice(0, 10);
+  suggSel = -1;
+  sugg.innerHTML = suggItems.map((x, i) => `<li role="option" data-i="${i}"><span>${x.name}</span><span class="k">${x.kind}</span></li>`).join('') || '<li class="k">No match</li>';
+  sugg.hidden = false; q.setAttribute('aria-expanded', 'true');
+  sugg.querySelectorAll('li[data-i]').forEach(li => li.onmousedown = e => { e.preventDefault(); go(suggItems[+li.dataset.i]); });
+});
+q.addEventListener('keydown', e => {
+  if (sugg.hidden) return;
+  if (e.key === 'ArrowDown') { suggSel = Math.min(suggItems.length - 1, suggSel + 1); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { suggSel = Math.max(0, suggSel - 1); e.preventDefault(); }
+  else if (e.key === 'Enter') { if (suggItems.length) go(suggItems[Math.max(0, suggSel)]); return; }
+  else if (e.key === 'Escape') { closeSugg(); return; }
+  sugg.querySelectorAll('li[data-i]').forEach((li, i) => li.setAttribute('aria-selected', i === suggSel));
+});
+q.addEventListener('blur', () => setTimeout(closeSugg, 150));
+function closeSugg() { sugg.hidden = true; q.setAttribute('aria-expanded', 'false'); }
+function go(item) {
+  closeSugg(); q.value = ''; q.blur();
+  if (mode === 'quiz') setMode('zones');
+  select(item.s, !item.d);
+  if (item.d) { const d = item.s.districtFeatures.find(x => x.properties.name === item.d.properties.name); highlightDistrict(d, true); }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.activeElement !== q) { if (mode === 'quiz') setMode('zones'); else select(null, true); } });
+
+// ---------- theme & resize ----------
+const repaint = () => paint();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
+new MutationObserver(repaint).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { T = d3.zoomIdentity; svg.call(zoom.transform, T); build(); if (selected) zoomTo(selected); }, 120); });
+
+// ---------- start ----------
+prepareAll();
+build();
+try { const m = localStorage.getItem('atlas-mode'); if (m && MODES[m] && m !== 'quiz') setMode(m); } catch (e) {}
+const initial = bySlug.get((location.hash || '').slice(1));
+if (initial) select(initial, true);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { prepareAll(); build(); if (selected) { select(selected); } });
+</script>

@@ -1,0 +1,11 @@
+{
+  "name": "bharat-atlas-tools",
+  "private": true,
+  "type": "module",
+  "description": "Data pipeline for the Bharat Atlas map (run from the repo root: npm --prefix tools install && tools/build-data.sh <downloads>)",
+  "dependencies": {
+    "mapshaper": "0.6.102",
+    "polylabel": "1.1.0",
+    "topojson-client": "3.1.0"
+  }
+}
