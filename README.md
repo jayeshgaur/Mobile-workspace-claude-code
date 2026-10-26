@@ -4,8 +4,8 @@ An interactive map of India in a single HTML file: 28 states and 8 union territo
 borders following the Survey of India's 2019 depiction, every name set at the visual centre
 of its shape, and a district layer that appears when you open a state.
 
-**Open `index.html` in any browser.** Nothing to install. It loads D3 and TopoJSON from cdnjs
-and Google Fonts; everything else, including the map data, is inside the file.
+**Open `index.html` in any browser.** Nothing to install and no network needed: D3, TopoJSON and
+the map data are all inside the file. Only the two Google Fonts are fetched, with system fallbacks.
 
 ## What it does
 
@@ -50,5 +50,6 @@ src/index.template.html  page source with a __TOPO_JSON__ placeholder
 data/india.topojson      states + districts, simplified, with label anchors
 tools/build-data.sh      GeoJSON -> TopoJSON pipeline (mapshaper)
 tools/enrich.mjs         adds label anchors and tidies names
-tools/build.mjs          injects the data into the template
+src/vendor/              D3 7.9.0 and topojson-client 3.1.0 (ISC), inlined at build time
+tools/build.mjs          injects the data and libraries into the template
 ```

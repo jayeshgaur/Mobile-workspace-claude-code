@@ -189,6 +189,7 @@
   .quiz .qa button { font-size: 13px; padding: 6px 12px 5px; border-radius: 999px; border: 1px solid var(--line); background: transparent; cursor: pointer; }
   .quiz .qa button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
+  .notice { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); z-index: 50; background: var(--bad); color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 13.5px; box-shadow: var(--shadow); }
   .attrib { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); font-size: 11px; color: var(--fg-3); background: var(--panel); padding: 3px 8px; border-radius: 6px; max-width: 46%; text-align: right; }
 
   @media (max-width: 720px) {
@@ -255,9 +256,14 @@
   </main>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson-client/3.1.0/topojson-client.min.js"></script>
+<div class="notice" id="notice" hidden role="alert"></div>
+<script>__D3_JS__</script>
+<script>__TOPOJSON_JS__</script>
 <script>
+const noticeEl = document.getElementById('notice');
+function showNotice(msg) { noticeEl.textContent = msg; noticeEl.hidden = false; }
+window.addEventListener('error', e => showNotice('Something went wrong while drawing the map: ' + (e.message || e.error || 'unknown error')));
+if (typeof d3 === 'undefined' || typeof topojson === 'undefined') showNotice('The map libraries did not load, so the map cannot be drawn.');
 const TOPO = __TOPO_JSON__;
 
 // Zonal Councils of India (plus the North Eastern Council) as the default grouping.
@@ -402,6 +408,12 @@ function prepareAll() {
 // ---------- build ----------
 function size() {
   W = stage.clientWidth; H = stage.clientHeight;
+  if (H < 320 || W < 200) {
+    // The host gave the page no usable height (e.g. an auto-sized frame): take a fixed stage height instead.
+    const want = Math.max(480, Math.min(820, Math.round((W || 400) * 1.1)));
+    stage.style.height = want + 'px'; stage.style.flex = 'none'; document.body.style.overflow = 'auto'; document.body.style.height = 'auto'; document.documentElement.style.height = 'auto';
+    W = stage.clientWidth; H = stage.clientHeight;
+  }
   const padR = W > 720 ? 40 : 16;
   projection.fitExtent([[16, 16], [W - padR, H - 16]], statesFC);
   states.forEach(s => { s.anchor = projection([s.properties.lx, s.properties.ly]); s.r = s.properties.lr * projection.scale(); });
